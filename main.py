@@ -10,10 +10,15 @@ player_x = 64
 player_y = 40
 player_size = 8
 
-player_a = 30
-fov = 90
+player_a = 40
+fov = 60
+fov_rad = math.radians(fov)
+# player's height?
+
+distance_to_projection_plane = (width / 2) / math.tan(fov_rad / 2)
 
 block_list = [
+
     [1, 6],
     [1, 7],
     [1, 8],
@@ -74,38 +79,39 @@ block_list = [
     [8, 15]
 ]
 
-def init_image(width, height):
-    data = [[(0, 0, 0, 255)] * width ] * height
+def init_image(width, height, background_color):
+    data = [[background_color] * width ] * height
     image = pyTGA.Image(data)
 
     return image
 
-frame_buffer = init_image(width, height)
+frame_buffer = init_image(width, height, (0, 0, 0, 255))
+rendered_img = init_image(width, height, (255, 255, 255, 255))
 
-def color_background():
+def color_background(img):
     for i in range(width):
         for j in range(height):
-            frame_buffer.set_pixel(j, i, (int((255 * j / height)), int((255 * i / height)), 0, 255))
+            img.set_pixel(j, i, (int((255 * j / height)), int((255 * i / height)), 0, 255))
 
-def draw_block(x, y, size, color):
+def draw_block(x, y, size, color, img):
     for i in range(size):
         for j in range(size):
-            frame_buffer.set_pixel(j + y, i + x, color)
+            img.set_pixel(j + y, i + x, color)
 
 
-def draw_blocks():
+def draw_blocks(img):
     for block in block_list:
         for i in range(block_size):
             for j in range(block_size):
-                frame_buffer.set_pixel(j + (block_size * block[0]), i + (block_size * block[1]), (255, 255, 255, 0))
+                img.set_pixel(j + (block_size * block[0]), i + (block_size * block[1]), (255, 255, 255, 0))
 
-def single_raycast(angle):
+def single_raycast(col, angle, img):
         angle_in_rad = math.radians(angle)
 
         adj = math.cos(angle_in_rad)
         opp = math.sin(angle_in_rad)
 
-        for h in numpy.arange(0, height - player_a, 1):
+        for h in range(0, height, 1):
             pixel_x = (player_x + (player_size / 2)) + (adj * h)
             pixel_y = (player_y + (player_size / 2)) + (opp * h)
 
@@ -117,24 +123,43 @@ def single_raycast(angle):
 
             for block in block_list:
                 if [map_y, map_x] == block: # inverted coordinates
+                    render(col, pixel_x, pixel_y)
                     return
 
-            draw_block(int(pixel_x), int(pixel_y), 1, (255, 255, 255, 255))
+            draw_block(int(pixel_x), int(pixel_y), 1, (255, 255, 255, 255), img)
 
-def raycast(fov):
-    for angle in range(player_a, fov + player_a):
-        single_raycast(angle)
+# def raycast(fov, img):
+#     col = 0
+#     for angle in numpy.arange(player_a - (fov / 2), (fov / 2) + player_a, (fov / 512)):
+#         single_raycast(col, angle, img)
+#         col += 1
 
+def raycast(player_angle, fov, img):
+    col = 0
+    for angle in numpy.arange(player_angle - (fov / 2), (fov / 2) + player_angle, (fov / 512)):
+        single_raycast(col, angle, img)
+        col += 1
+
+def render(col, pixel_x, pixel_y):
+    distance_to_the_slice = math.sqrt(math.pow((player_x - pixel_x), 2) + math.pow((player_y - pixel_y), 2))
+    projected_slice_height = (block_size / distance_to_the_slice) * distance_to_projection_plane
+    start_pos = (height / 2) - (projected_slice_height / 2)
+
+    for i in range(0, int(projected_slice_height)):
+        draw_block(col, int(start_pos) + i, 1, (127, 127, 127, 255), rendered_img)
+   
 def main():
     frame_buffer.set_first_pixel_destination('tl')
+    rendered_img.set_first_pixel_destination('tl')
 
-    color_background()
-    draw_blocks()
+    color_background(frame_buffer)
+    draw_blocks(frame_buffer)
 
-    draw_block(player_x, player_y, player_size, (255, 0, 0, 255))
+    draw_block(player_x, player_y, player_size, (255, 0, 0, 255), frame_buffer)
 
-    raycast(fov)
-
+    raycast(player_a, fov, frame_buffer)
+    
     frame_buffer.save("frame_buffer")
+    rendered_img.save("3D")
 
 main()
