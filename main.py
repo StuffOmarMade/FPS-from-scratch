@@ -1,19 +1,19 @@
 import pyTGA
 import math
 import numpy
+from stb import image as im
 
 width = 512
 height = 512
 block_size = 32
 
-player_x = 64
-player_y = 40
+player_x = 40
+player_y = 64
 player_size = 8
 
 player_a = 40
 fov = 60
 fov_rad = math.radians(fov)
-# player's height?
 
 distance_to_projection_plane = (width / 2) / math.tan(fov_rad / 2)
 
@@ -79,6 +79,8 @@ block_list = [
     [8, 15]
 ]
 
+x = im.load('BIGSQUARES.png')
+
 def init_image(width, height, background_color):
     data = [[background_color] * width ] * height
     image = pyTGA.Image(data)
@@ -123,8 +125,15 @@ def single_raycast(col, angle, img):
 
             for block in block_list:
                 if [map_y, map_x] == block: # inverted coordinates
-                    render(col, pixel_x, pixel_y)
+                    if (((int(pixel_x) % block_size) == 0) or ((int(pixel_x) % block_size) == 31)):
+                        img_col = int(pixel_y) - (block[0] * block_size) # vertically
+                    elif (((int(pixel_y) % block_size) == 0) or ((int(pixel_y) % block_size) == 31)):
+                        img_col = int(pixel_x) - (block[1] * block_size) # horizontally
+                    
+                    render(col, pixel_x, pixel_y, img_col)
+
                     return
+        
 
             draw_block(int(pixel_x), int(pixel_y), 1, (255, 255, 255, 255), img)
 
@@ -140,14 +149,24 @@ def raycast(player_angle, fov, img):
         single_raycast(col, angle, img)
         col += 1
 
-def render(col, pixel_x, pixel_y):
+def render(col, pixel_x, pixel_y, img_col = 0):
     distance_to_the_slice = math.sqrt(math.pow((player_x - pixel_x), 2) + math.pow((player_y - pixel_y), 2))
     projected_slice_height = (block_size / distance_to_the_slice) * distance_to_projection_plane
     start_pos = (height / 2) - (projected_slice_height / 2)
 
     for i in range(0, int(projected_slice_height)):
-        draw_block(col, int(start_pos) + i, 1, (127, 127, 127, 255), rendered_img)
-   
+        # to be fixed
+        resized_col = numpy.resize(x[:, img_col], (int(projected_slice_height), 4))
+
+        draw_block(col, int(start_pos) + i, 1, resized_col[i], rendered_img)
+        
+    for i in range(int(start_pos) + int(projected_slice_height), height):
+        draw_block(col, i, 1, (255, 0, 0, 255), rendered_img)
+
+    for j in range(int(start_pos)):
+        draw_block(col, j, 1, (0, 255, 0, 255), rendered_img)
+
+
 def main():
     frame_buffer.set_first_pixel_destination('tl')
     rendered_img.set_first_pixel_destination('tl')
