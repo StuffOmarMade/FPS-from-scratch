@@ -1,0 +1,25 @@
+TODO:
+    [x] Fix raycasting
+
+    [x] Fix fish eye distortion
+    [x] map (on the side of the game view)
+    [x] add player movement
+    
+    [] collision with walls
+    [] shooting
+    [] render enemies
+    [] shooting hit/collision
+
+    [] health, ammo, damage to enemy, death of enemy, win, lose, score system 
+    
+    [] map editor
+
+    [] ui/HUD
+    [] shooting sound
+    [] shading/effects
+    [] soundtrack
+    
+    [] enemy ai
+
+    [] textures
+    [] optimizations
