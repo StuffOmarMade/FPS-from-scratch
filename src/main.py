@@ -9,10 +9,10 @@ from OpenGL.GLU import *
 
 from PIL import Image
 
-fire_gun_img = Image.open('shoot.png')
+fire_gun_img = Image.open('./sprites/shoot.png')
 fire_gun = numpy.asarray(fire_gun_img)
 
-idle_gun_img = Image.open('shoot_idle.png')
+idle_gun_img = Image.open('./sprites/shoot_idle.png')
 idle_gun = numpy.asarray(idle_gun_img)
 
 display = (1024, 512)
@@ -248,7 +248,6 @@ def main():
             distance_to_slice, color = raycast(angle)
             render(col, distance_to_slice * math.cos(math.radians(player.angle) - angle), color)
             col += 1
-
 
         if(player.isFiring):
             render_texture(fire_gun, (world.width / 2) - (world.tile_size / 2), world.height - world.tile_size)
