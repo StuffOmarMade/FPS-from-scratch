@@ -4,21 +4,22 @@ TODO:
     [x] Fix fish eye distortion
     [x] map (on the side of the game view)
     [x] add player movement
-    
-    [] collision with walls
-    [] shooting
+    [x] collision with walls
+
+
     [] render enemies
+    [] shooting
     [] shooting hit/collision
 
     [] health, ammo, damage to enemy, death of enemy, win, lose, score system 
     
-    [] map editor
-
-    [] ui/HUD
     [] shooting sound
-    [] shading/effects
+    [] HUD
+    [] ui
     [] soundtrack
+    [] shading/effects
     
+    [] map editor
     [] enemy ai
 
     [] textures

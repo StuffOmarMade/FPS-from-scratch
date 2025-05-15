@@ -7,6 +7,16 @@ from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
 
+from PIL import Image
+
+fire_gun_img = Image.open('shoot.png')
+fire_gun = numpy.asarray(fire_gun_img)
+
+idle_gun_img = Image.open('shoot_idle.png')
+idle_gun = numpy.asarray(idle_gun_img)
+
+display = (1024, 512)
+
 class World:
     
     def __init__(self, width, height, tile_size, world_map):
@@ -17,8 +27,7 @@ class World:
 
 class Player:
 
-    def __init__(self, height, x, y, fov, angle, movement_speed, turning_speed):
-        self.height = height
+    def __init__(self, x, y, fov, angle, movement_speed, turning_speed):
         self.x = x
         self.y = y
         self.fov = fov
@@ -26,20 +35,22 @@ class Player:
         self.movement_speed = movement_speed
         self.turning_speed = turning_speed
         self.halfFOV = fov / 2
+        self.isFiring = False
+        self.health = 100
 
 world_map = [
     [1, 1, 1, 1, 1, 1, 1, 1],
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 0, 1, 1, 0, 1, 0, 1],
-    [1, 1, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 1, 0, 1],
-    [1, 1, 0, 0, 1, 0, 0, 1],
+    [1, 0, 0, 1, 0, 0, 0, 1],
+    [1, 0, 0, 0, 0, 1, 0, 1],
+    [1, 0, 0, 1, 1, 0, 0, 1],
     [1, 0, 0, 0, 0, 0, 0, 1],
     [1, 1, 1, 1, 1, 1, 1, 1],
 ]
 
 world = World(512, 512, 64, world_map)
-player = Player(32, 100, 100, 60, 90, 10, 10)
+player = Player(100, 100, 60, 90, 10, 10)
 
 angle_between_subsequent_columns = player.fov / world.width
 distance_to_projection_plane = (world.width / 2) / math.tan(math.radians(player.halfFOV))
@@ -102,32 +113,38 @@ def raycast(angle):
     if horizontal_hit and vertical_hit:
         if(horizontalDistance < verticalDistance):
             draw_ray(horizontalHitPos[0], horizontalHitPos[1])
-            return horizontalDistance
+            returned_distance = horizontalDistance
+            strip_color = (0.9, 0, 0, 1)
         else:
             draw_ray(verticalHitPos[0], verticalHitPos[1])
-            return verticalDistance
+            returned_distance = verticalDistance
+            strip_color = (0.8, 0, 0, 1)
             
     elif horizontal_hit:
         draw_ray(horizontalHitPos[0], horizontalHitPos[1])
-        return horizontalDistance
+        returned_distance = horizontalDistance
+        strip_color = (0.9, 0, 0, 1)
     elif vertical_hit:
         draw_ray(verticalHitPos[0], verticalHitPos[1])
-        return verticalDistance
+        returned_distance = verticalDistance
+        strip_color = (0.8, 0, 0, 1)
+    
+    return returned_distance, strip_color
 
-def render(col, distance_to_slice):
+def render(col, distance_to_slice, color=(0.9, 0, 0, 1)):
     projected_slice_height = (world.tile_size / distance_to_slice) * distance_to_projection_plane
     glBegin(GL_LINES)
-    # glColor(0, 0, 0, 1)
-    # glVertex2d(col + world.width, 0)
-    # glVertex2d(col + world.width, (world.height / 2) - (projected_slice_height / 2))
+    glColor(0, 0, 0, 1)
+    glVertex2d(col + world.width, 0)
+    glVertex2d(col + world.width, (world.height / 2) - (projected_slice_height / 2))
 
-    glColor(149/255, 6/255, 6/255, 1)
+    glColor(color)
     glVertex2d(col + world.width, (world.height / 2) - (projected_slice_height / 2))
     glVertex2d(col + world.width, (world.height / 2) + (projected_slice_height / 2))
     
-    # glColor(0.5, 0.5, 0.5, 1)
-    # glVertex2d(col + world.width, (world.height / 2) + (projected_slice_height / 2))
-    # glVertex2d(col + world.width, world.height)
+    glColor(0.5, 0.5, 0.5, 1)
+    glVertex2d(col + world.width, (world.height / 2) + (projected_slice_height / 2))
+    glVertex2d(col + world.width, world.height)
     glEnd()
 
 def display_map(world_map):
@@ -158,21 +175,46 @@ def draw_ray(x, y):
     glVertex2d(x, y)
     glEnd()
 
+def render_texture(texture, posX, posY):
+    glEnable(GL_BLEND)
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+    glPointSize(1.0)
+    glBegin(GL_POINTS)
+    for i in range(numpy.shape(texture)[0]):
+        for j in range(numpy.shape(texture)[1]):
+            glColor4f(texture[i][j][0] / 255, texture[i][j][1] / 255, texture[i][j][2] / 255, texture[i][j][3] / 255)
+            glVertex2d(world.width + posX + j, posY + i)
+    glEnd()
+
 def handlePlayerMovement():
     keys = pygame.key.get_pressed()
 
+    new_x = 0
+    new_y = 0
+
     if keys[K_RIGHT]:
-        player.x += (-math.sin(math.radians(player.angle)) *  player.movement_speed)
-        player.y += (math.cos(math.radians(player.angle)) * player.movement_speed)
+        new_x += (-math.sin(math.radians(player.angle)) *  player.movement_speed)
+        new_y += (math.cos(math.radians(player.angle)) * player.movement_speed)
     if keys[K_LEFT]:
-        player.x += (math.sin(math.radians(player.angle)) *  player.movement_speed)
-        player.y -= (math.cos(math.radians(player.angle)) * player.movement_speed)
+        new_x += (math.sin(math.radians(player.angle)) *  player.movement_speed)
+        new_y -= (math.cos(math.radians(player.angle)) * player.movement_speed)
     if keys[K_UP]:
-        player.x += (math.cos(math.radians(player.angle)) *  player.movement_speed)
-        player.y += (math.sin(math.radians(player.angle)) * player.movement_speed)
+        new_x += (math.cos(math.radians(player.angle)) *  player.movement_speed)
+        new_y += (math.sin(math.radians(player.angle)) * player.movement_speed)
     if keys[K_DOWN]:
-        player.x -= (math.cos(math.radians(player.angle)) *  player.movement_speed)
-        player.y -= (math.sin(math.radians(player.angle)) * player.movement_speed)
+        new_x -= (math.cos(math.radians(player.angle)) *  player.movement_speed)
+        new_y -= (math.sin(math.radians(player.angle)) * player.movement_speed)
+    
+    new_map_x = math.floor((player.x + new_x) / world.tile_size)
+    new_map_y = math.floor((player.y + new_y) / world.tile_size)
+    if world_map[new_map_y][new_map_x] != 1:
+        player.x += new_x
+        player.y += new_y
+
+    if keys[K_SPACE]:
+        player.isFiring = True
+    else:
+        player.isFiring = False
 
     if keys[K_z]:
         player.angle -= player.turning_speed
@@ -181,9 +223,8 @@ def handlePlayerMovement():
 
 def main():
     pygame.init()
-    display = (1024, 512)
     pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
-    gluOrtho2D(0, 1024, 512, 0)  # left, right, bottom, up
+    gluOrtho2D(0, display[0], display[1], 0)  # left, right, bottom, up
 
     while True:
         for event in pygame.event.get():
@@ -204,10 +245,16 @@ def main():
             angle = angle % (2 * math.pi)
             if angle <= 0:
                 angle = (2 * math.pi) + angle
-            distance_to_slice = raycast(angle)
-            render(col, distance_to_slice * math.cos(math.radians(player.angle) - angle))
+            distance_to_slice, color = raycast(angle)
+            render(col, distance_to_slice * math.cos(math.radians(player.angle) - angle), color)
             col += 1
-        
+
+
+        if(player.isFiring):
+            render_texture(fire_gun, (world.width / 2) - (world.tile_size / 2), world.height - world.tile_size)
+        else:
+            render_texture(idle_gun, (world.width / 2) - (world.tile_size / 2), world.height - world.tile_size)
+
         pygame.display.flip()
         pygame.time.wait(10)
 
